@@ -209,7 +209,39 @@ class AddLessonDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Добавить урок")
-        self.setFixedWidth(300)
+        self.setFixedWidth(350)
+
+        self.setStyleSheet("""
+            QDialog {
+                background-color: #ffffff;
+                border-radius: 12px;
+            }
+            QLabel {
+                color: #1f2937;
+                font-weight: 500;
+            }
+            QComboBox, QLineEdit {
+                background-color: #f9fafb;
+                border: 1px solid #d1d5db;
+                border-radius: 8px;
+                padding: 8px 12px;
+                min-height: 2px;
+            }
+            QComboBox::drop-down {
+                border: none;
+            }
+            QPushButton {
+                background-color: #4f46e5;
+                color: white;
+                border: none;
+                border-radius: 10px;
+                padding: 12px;
+                font-weight: 600;
+            }
+            QPushButton:hover {
+                background-color: #4338ca;
+            }
+        """)
 
         layout = QVBoxLayout(self)
 
@@ -333,10 +365,21 @@ class AddLessonDialog(QDialog):
 
 
 class Schedule(QMainWindow):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
         self.setWindowTitle("Расписание")
-        self.resize(900, 500)
+        self.resize(1000, 600)
+
+        self.setStyleSheet("""
+            QMainWindow {
+                background-color: #f5f6fa;
+            }
+            QWidget {
+                font-family: Segoe UI, Arial;
+                font-size: 11px;
+            }
+        """)
 
         self.init_ui()
         self.init_db()
@@ -361,25 +404,93 @@ class Schedule(QMainWindow):
 
         left_layout.addWidget(self.table)
 
+        self.table.setStyleSheet("""
+            QTableWidget {
+                background-color: white;
+                gridline-color: #e5e7eb;
+                border: 1px solid #d1d5db;
+                border-radius: 8px;
+            }
+            QTableWidget::item {
+                padding: 8px;
+            }
+            QHeaderView::section {
+                background-color: #f3f4f6;
+                padding: 8px;
+                border: 1px solid #d1d5db;
+                font-weight: bold;
+            }
+            QTableWidget::item:selected {
+                background-color: #e0f2fe;
+                color: black;
+            }
+        """)
+
+        self.table.horizontalHeader().setStretchLastSection(True)
+        self.table.verticalHeader().setVisible(False)
+        self.table.setAlternatingRowColors(True)
+
         right_widget = QWidget()
         right_layout = QVBoxLayout(right_widget)
         right_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        right_layout.setSpacing(16)
+        right_layout.setContentsMargins(12, 20, 12, 20)
+
+        button_style = """
+            QPushButton {
+                background-color: #4f46e5;          /* индиго */
+                color: white;
+                border: none;
+                border-radius: 10px;
+                padding: 10px 16px;
+                font-weight: 600;
+                font-size: 14px;
+            }
+            QPushButton:hover {
+                background-color: #4338ca;
+            }
+            QPushButton:pressed {
+                background-color: #3730a3;
+            }
+            QPushButton:disabled {
+                background-color: #a5b4fc;
+                color: #e0e7ff;
+            }
+        """
+
+        top_buttons_layout = QHBoxLayout()
+        top_buttons_layout.setSpacing(12)
 
         self.btn_add = QPushButton("Добавить урок")
-        self.btn_add.setFixedSize(150, 40)
+        self.btn_add.setFixedHeight(48)
+        self.btn_add.setStyleSheet(button_style)
         self.btn_add.clicked.connect(self.add_lesson)
 
         self.btn_del = QPushButton("Удалить урок")
-        self.btn_del.setFixedSize(150, 40)
+        self.btn_del.setFixedHeight(48)
+        self.btn_del.setStyleSheet(
+            button_style.replace("#4f46e5", "#ef4444").replace("#4338ca", "#dc2626").replace("#3730a3", "#b91c1c"))
         self.btn_del.clicked.connect(self.delete_lesson)
 
-        self.btn_back = QPushButton("Назад")
-        self.btn_back.setFixedSize(150, 40)
+        top_buttons_layout.addWidget(self.btn_add)
+        top_buttons_layout.addWidget(self.btn_del)
+        top_buttons_layout.addStretch()
 
-        right_layout.addWidget(self.btn_add)
-        right_layout.addWidget(self.btn_back)
-        right_layout.addWidget(self.btn_del)
+        right_layout.addLayout(top_buttons_layout)
+
         right_layout.addStretch()
+
+        self.btn_back = QPushButton("Назад")
+        self.btn_back.setFixedHeight(48)
+        self.btn_back.setStyleSheet(
+            button_style.replace("#4f46e5", "#6b7280").replace("#4338ca", "#4b5563").replace("#3730a3", "#374151"))
+
+        back_layout = QHBoxLayout()
+        back_layout.addStretch()
+        back_layout.addWidget(self.btn_back)
+        back_layout.addStretch()
+
+        right_layout.addLayout(back_layout)
 
         main_layout.addWidget(left_widget, stretch=4)
         main_layout.addWidget(right_widget, stretch=1)
@@ -398,17 +509,6 @@ class Schedule(QMainWindow):
             return
 
         lesson_id = lesson_id_item.text()
-
-        reply = QMessageBox.question(
-            self,
-            "Подтверждение удаления",
-            f"Удалить урок с ID {lesson_id}?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No
-        )
-
-        if reply != QMessageBox.StandardButton.Yes:
-            return
 
         try:
             conn = sqlite3.connect(DB_NAME)
@@ -461,27 +561,83 @@ class Schedule(QMainWindow):
 
         conn.close()
 
-
     def add_lesson(self):
         dialog = AddLessonDialog(self)
 
-        if dialog.exec():
-            data = dialog.get_data()
+        if not dialog.exec():
+            return
 
-            conn = sqlite3.connect(DB_NAME)
-            cursor = conn.cursor()
+        class_name, subject, teacher, classroom, day, lesson_num = dialog.get_data()
 
+        if not lesson_num.isdigit():
+            QMessageBox.warning(self, "Ошибка", "Номер урока не может быть пустым!")
+            return
+
+        lesson_num = int(lesson_num)
+        if lesson_num < 1 or lesson_num > 10:
+            QMessageBox.warning(self, "Ошибка", "Номер урока должен быть от 1 до 8")
+            return
+
+        conn = sqlite3.connect(DB_NAME)
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT id, class_id 
+            FROM schedule 
+            WHERE teacher_id = ? 
+              AND day_of_week = ? 
+              AND lesson_number = ?
+        """, (teacher, day, lesson_num))
+
+        conflict_teacher = cursor.fetchone()
+
+        if conflict_teacher:
+            existing_id, existing_class = conflict_teacher
+            QMessageBox.warning(
+                self,
+                "Конфликт учителя",
+                f"Учитель {teacher} уже ведёт урок в {day} на {lesson_num} уроке\n"
+                f"в классе {existing_class} (ID записи: {existing_id})"
+            )
+            conn.close()
+            return
+
+        cursor.execute("""
+            SELECT id, class_id 
+            FROM schedule 
+            WHERE classroom_id = ? 
+              AND day_of_week = ? 
+              AND lesson_number = ?
+        """, (classroom, day, lesson_num))
+
+        conflict_room = cursor.fetchone()
+
+        if conflict_room:
+            existing_id, existing_class = conflict_room
+            QMessageBox.warning(
+                self,
+                "Конфликт кабинета",
+                f"Кабинет {classroom} уже занят в {day} на {lesson_num} уроке\n"
+                f"классом {existing_class} (ID записи: {existing_id})"
+            )
+            conn.close()
+            return
+
+        try:
             cursor.execute("""
                 INSERT INTO schedule (
                     class_id, subject_id, teacher_id,
                     classroom_id, day_of_week, lesson_number
-                )
-                VALUES (?, ?, ?, ?, ?, ?)
-            """, data)
+                ) VALUES (?, ?, ?, ?, ?, ?)
+            """, (class_name, subject, teacher, classroom, day, lesson_num))
 
             conn.commit()
-            conn.close()
-
+            QMessageBox.information(self, "Успех", "Урок успешно добавлен")
             self.load_data()
 
+        except Exception as e:
+            QMessageBox.critical(self, "Ошибка базы данных", str(e))
+
+        finally:
+            conn.close()
 
